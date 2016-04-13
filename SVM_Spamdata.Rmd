@@ -1,0 +1,53 @@
+---
+title: "SVM_Spam"
+author: "Kavya Gautam"
+date: "November 16, 2015"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+
+```{r}
+spamdata <- read.csv("spam.csv")
+dim(spamdata)
+
+strain <- sample(nrow(spamdata), nrow(spamdata)*0.85)
+dim(spamdata[-strain,])
+dim(spamdata[strain,])
+
+spamtrain <- spamdata[strain,]
+spamtest <- spamdata[-strain,]
+
+stune <- sample(nrow(spamtrain), 500)
+#Choosing a random sample of 500 from the Training data and not from the entire data
+spamtune <- spamtrain[stune,]
+```
+
+3 (a)
+
+```{r}
+library(e1071)
+sgamma <- seq(0.000001, 0.001,length=10)
+scost <- seq(10, 100, length=10)
+tune.search <- tune.svm(type~., data=spamtune, kernel="radial", gamma = sgamma, cost = scost)
+summary(tune.search)
+best.gamma <- summary(tune.search)$best.parameters['gamma']
+best.cost <- summary(tune.search)$best.parameters['cost']
+best.gamma ; best.cost
+```
+3 (b)
+```{r}
+svmfit.train <- svm(type~., data=spamtrain, kernel = "radial", gamma = best.gamma[[1]], cost = best.cost[[1]])
+summary(svmfit.train)
+```
+3 (c)
+```{r}
+#Now lets predict our training svm fit on our test data "spamtest"
+spam.tpredict <- predict(svmfit.train, newdata=spamtest)
+summary(spam.tpredict)
+spam.conf <- table(spam.tpredict, spamtest$type)
+spam.conf
+accuracy <- mean(spam.tpredict == spamtest$type)
+accuracy
+```

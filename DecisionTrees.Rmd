@@ -1,0 +1,95 @@
+---
+title: "DecisionTrees"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+#set.seed(1)
+house = read.csv("housetype_data.txt")
+dim(house)
+#sampling 90% of the data for training set
+train = sample(dim(house)[1],0.9*dim(house)[1])
+# The remaining 10% of data "house[-train]" is set aside for estimating  mis-classification error
+
+# Reporting the number of NAs
+sum(is.na(house[train,]))
+sum(is.na(house[-train,]))
+sum(is.na(house))
+```
+
+
+# 4 (a)
+```{r}
+str(house)
+# Marking each of the attributes as a factor since all the columns are categorical as per the given data in "housetype_info.txt"
+for(i in 1:dim(house)[2]){
+  if (!(i==4 || i==7)){
+    house[,i] = factor(house[,i])
+  }
+}
+str(house)
+
+# applying rpart
+library(rpart)
+help(rpart)
+treeHouse <- rpart(ht~., data = house[train,], method = "class", cp=0.0001)
+```
+# 4 (b)
+```{r}
+#Using plotcp() to show the graph of cross validation error as a function of size of tree
+plotcp(treeHouse, col = 3, upper = "size")
+
+#Seeing the details of the graph through an rpart object called cptable
+plotdetails <- treeHouse$cptable
+print(plotdetails)
+
+class(plotdetails)
+#Just for ease of access, lets store these details as a dataframe
+plotdetails <- data.frame(plotdetails)
+#Now lets find out the minimum xerror value and the nsplit value corresponding to this
+idealCPindex <- which.min(plotdetails$xerror)
+plotdetails[idealCPindex,]
+```
+
+#Complexity parameter is not the error in that particular node. It is the amount by which splitting that node improved the relative error. So in your example, splitting the original root node dropped the relative error from 1.0 to 0.5, so the CP of the root node is 0.5. The CP of the next node is only 0.01 (which is the default limit for deciding when to consider splits). So splitting that node only resulted in an improvement of 0.01, so the tree building stopped there.
+
+# 4 (c)
+```{R}
+#Pruning the tree using the CP value corresponding to the min xerror value in the previously created treeHouse
+prunedHouse <- prune(treeHouse,cp = plotdetails[idealCPindex,"CP"])
+
+#Just for an insight, lets compare the original tree and the pruned tree
+par(mfrow=c(1,2))
+plot(treeHouse)
+plot(prunedHouse)
+# we can observe that cp value 0.0013 (min xerror) does a lot better than the tree with cp = 0.0001
+```
+# 4 (d)
+```{R}
+#Plotting the pruned tree classifier in a nice way
+?plot.rpart
+?text.rpart
+par(mfrow=c(1,1))
+plot(prunedHouse, uniform=T, margin=0.04, compress=T)
+text(prunedHouse, pretty=0, all=T, use.n=T)
+
+#To understand the relation between the predictors and the response, lets look at the plot produced above and one portion of summary of the plot
+summary(prunedHouse)
+```
+4(d) (contd.,) Write a short report about the relation between the house type and the other demographic predictors as obtained from the RPART output. 
+
+# 4 (f)
+```{R}
+#predicting the house type using the pruned tree on the test data
+house.predict = predict(prunedHouse, newdata = house[-train,],type = "class")
+#Creating the confusion matrix
+house.confusion = table(house.predict, house[-train,]$ht)
+house.confusion
+#Total Accuracy on the test data
+mean(house.predict==house[-train,]$ht)
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -1,0 +1,105 @@
+---
+title: "NueralNet"
+author: "Kavya Gautam"
+date: "November 16, 2015"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+Q2
+----
+
+```{r}
+az <- read.table("az-5000.txt",header=TRUE)
+#SEPERATING THE TRAINING AND THE TEST DATA SETS - 80/20
+dim(az)
+train <- sample(nrow(az), 0.8*nrow(az))
+aztrain <- az[train,]
+aztest <- az[-train,]
+```
+2 (b)
+```{r}
+char.num <- as.numeric(aztrain$char)
+#initializing the target binary matrix with 0s to start with
+target.matrix <- matrix(0,nrow=length(char.num), ncol = 26)
+#Now we will change the 0 to 1 in the matrix corresponding to the index = number equivalent of the corresponding char from training data
+for (i in 1:4000){
+  target.matrix[i,char.num[i]]=1
+}
+#validating the result by counting 1s
+sum(target.matrix==1)
+```
+2 (c)
+```{r}
+library(nnet)
+# we have to vary the number of units in the hidden layer from 1 to 20. Lets store the fit of each size in a list
+aznnet = list()
+for(i in 1:20){
+  aznnet[[i]] = nnet(char~., data=aztrain, maxit=1000, size=i)
+}
+
+head(aznnet)
+names(aznnet[[1]])
+```
+2 (d)
+```{r}
+azfitted = list()
+for (i in 1:20){
+  azfitted[[i]] = aznnet[[i]]$fitted.values
+}
+length(azfitted[[1]])
+#This is equivalent to 4000*26, so we can find the MSE by calculating the mean of squared differences between the fitted values and the target binary matrix
+mserror = rep(0,20)
+for(i in 1:20){
+  mserror[i] <- mean((target.matrix-azfitted[[i]])^2)
+}
+```
+2 (e)
+```{r}
+testchar.num <- as.numeric(aztest$char)
+#initializing the target binary matrix with 0s to start with
+target.test <- matrix(0,nrow=length(testchar.num), ncol = 26)
+#Now we will change the 0s to 1s in the matrix corresponding to the index = number equivalent of the corresponding char from test data
+for (i in 1:1000){
+  target.test[i,testchar.num[i]]=1
+}
+#validating the result by counting 1s
+sum(target.test==1)
+
+#Now lets predict the networks for test data
+test.pred = list()
+for (i in 1:20){
+  test.pred[[i]] = predict(aznnet[[i]], newdata = aztest)
+}
+```
+contd.....
+```{r}
+mserror.test = rep(0,20)
+for (i in 1:20){
+  mserror.test[i] <- mean((target.test-test.pred[[i]])^2)
+}
+```
+
+2 (f)
+```{r}
+#Lets plot the MSE for Test data and the MSE for the Training data calculated in the above parts in one single plot.
+plot(mserror.test, col=4, type ="b", xlab="", ylab="")
+par(new=T)
+plot(mserror, col=2, axes=F,type ="b", ylab="MSE for Test and Training", xlab = "Size index")
+legend(12.5,0.035, c("Test MSE","Training MSE"), lty = c(1,1), lwd=c(1.5,1.5),col=c("blue","red"))
+par(new=F)
+```
+
+```{r}
+#The Best net is picked based on the minimum test error
+bestnet = which.min(mserror.test)
+
+#So, the best nnet occurs at a size where test error is minimum. Lets calculate the accuracy for test and training data sets at this size
+
+#TOTAL ACCURACY ON TRAINING SET FOR THE BEST NET AT SIZE =  :
+mean(aztrain$char == predict(aznnet[[bestnet]], type="class"))
+#TOTAL ACCURACY ON THE TEST SET FOR THE BEST NET AT SIZE =  :
+mean(aztest$char == predict(aznnet[[bestnet]], newdata = aztest, type="class"))
+
+```

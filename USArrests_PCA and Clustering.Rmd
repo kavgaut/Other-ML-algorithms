@@ -1,0 +1,112 @@
+---
+title: "USArrests_PCA and Clustering"
+author: "Kavya Gautam"
+date: "December 9, 2015"
+output: html_document
+---
+Look at means and variances of the four variables
+
+```{r}
+dimnames(USArrests)
+apply(USArrests, 2, mean)
+apply(USArrests, 2, var)
+```
+These huge differences in variances can be due to different units of the variables, so we need to standardize the variables. We can do that by passing scale = True in the prcomp() method
+
+```{r}
+PCA.arr <- prcomp(USArrests, scale=TRUE)
+PCA.arr
+```
+
+Now we have PC1, PC2, PC3 and PC4 as new variables instead of our old Murder, Assaukt, UrbanPop and Rape. These new variables are called Principal components.
+In the summary above, the Standard deviation values when squared will give us two of the PCs that explain most of the variance in the data. And then the rotation represent loadings. For example PC1 is loaded on three of the four crimes and less loaded on the fourth one (based on the values). Also we notice that second principal component PC2 is heavily loaded on a single crime 'UrbanPop'
+
+So the two principal components PC1 and PC2 pretty much sum up the scenario as PC1 is total crime except 'UrbanPop' and PC2 is majorly 'UrbanPop'
+
+Also, We can obtain a summary of the proportion of variance explained (PVE) of the first two principal components using the summary() method for the prcomp object
+proportion of variance explained (PVE)
+It is realy informative to plot the PVE of each principal component (i.e. a scree plot).
+
+```{r}
+pve=100*PCA.arr$sdev^2/sum(PCA.arr$sdev^2)
+plot(pve, type="o", ylab="PVE", xlab="Principal Component",col =" blue ")
+
+```
+
+```{r}
+summary(PCA.arr)
+PCA.arr$x
+biplot(PCA.arr, scale = 0, cex=0.6)
+
+```
+From the summary - The proportion of variance explained by PC1 and PC2 together is 62% + 25%, that is 87%
+
+Red: Directions of the loadings for the principal components.The first axis is largely due to three crimes - murder, assault and rape. The second axis is solely due to UrbanPop
+
+So the states on the side of the direction vectors show indications of high crime - for eg: Nevada, California, Michigan, New Mexico etc have high total crime while on the other side, West Virgiia, North Dakota, Marine etc have low total crime
+
+Similarly, for UrbanPop, we can say New Jersy, Rhode ISland, Hawaii have a high Urban Population with Arkansas, Mississipi, North Carolina on the other side of UrbanPop  
+
+K-means clustering using the obtained principal components
+----------------------------------------------------------
+```{r}
+#In order to find the ideal number of clusters, we have to look at the parameter withinss returned by the kmeans object as a preprocessing
+#The lesser the withinss the better the clustering. SO first, lets do kmeans for k = 2 to 15 and note down the total within sum of squares (tot.withiss) for each kmeans object. then plot the withinss and find the right k at the elbow of the scree plot
+
+totwithinss = c()
+for (i in 2:12){
+  k <- kmeans(USArrests, i, iter.max = 100, nstart = 20)
+  totwithinss[i] <- k$tot.withinss
+}
+
+k = 1:12
+plot(k, totwithinss, type='b', col='red', xlab = "Number of CLusters - K", ylab = "Goodness of fit - Total Within SS")
+
+#Meh, original data suggests 5 clusters??
+#Lets try PC data - USE THIS PLEASE
+pc.totwithinss = c()
+for (i in 2:12){
+  k <- kmeans(PCA.arr$x[,1:2], i, iter.max = 100, nstart = 20)
+  pc.totwithinss[i] <- k$tot.withinss
+}
+
+k = 1:12
+plot(k, pc.totwithinss, type='b', col='red', xlab = "Number of CLusters - K", ylab = "Goodness of fit - Total Within SS")
+
+
+```
+
+
+
+
+FINALLY - plotting the data points as per original data VS. by PCs
+can explain about how only assault vs murder is good in origibal clustering and no clarity wrt urbanpop and rape but PCA combines all three into one comp and Urban into one so the plot shows a neat depiction of clustering
+```{r}
+#clustering the original data with kmeans using the ideal k value
+kclusters <- kmeans(USArrests, 4, iter.max=500, nstart = 20)
+#clustering with data using only PC1 and PC2 and ideal k value
+pca.kclusters<- kmeans(PCA.arr$x[,1:2], 4, iter.max=500, nstart=20)
+
+#original clusters -4D
+plot(USArrests, col=kclusters$clust)
+
+#kmeans clusters with maximum variance represented by PCA
+plot(PCA.arr$x[,1:2], col=pca.kclusters$clust, pch=19,xlab="PC1",ylab="PC2")
+
+#hkjlhsadf
+library(cluster)
+library(fpc)
+
+#plotcluster(PCA.arr$x[,1:2],pca.kclusters$clust )
+
+#Final clusters representation
+clusplot(PCA.arr$x[,1:2], pca.kclusters$clust, color=TRUE, shade=TRUE, labels=5, lines=0, main = "The Grouping of US states based on Total Crime and Urban Popuation")
+
+#Labelling the states:
+clusplot(PCA.arr$x[,1:2], pca.kclusters$clust, color=TRUE, shade=TRUE, labels=2, lines=0, main = "The Grouping of US states based on Total Crime and Urban Popuation", col.p = "black")
+
+#Same plot using original data - just to see how much variance is explained
+clusplot(USArrests, kclusters$clust, color=TRUE, shade=TRUE, labels=2, lines=0, main = "The Grouping of US states based on original USArrests data", col.p = "black")
+```
+
+

@@ -1,0 +1,112 @@
+---
+title: "Collaborative filtering problem"
+author: "Kavya Gautam"
+date: "December 4, 2015"
+output:
+  html_document:
+    pandoc_args: [
+      "+RTS", "-K64m",
+      "-RTS"
+    ]
+---
+
+setwd("/Users/kavyagautam/R Prog/281HW4")
+```{r}
+library(recommenderlab)
+```
+
+(a)Use the scan() command to load the data into R as a list. The use the sparseMatrix() from the Matrix package to convert this list into a sparse matrix. Show the dimensions of the resulting matrix, and fill the row and column names (simple numeric labels will suffice). 
+
+
+```{r}
+#This will read 1536287 records and store them as 3 vectors within the list
+ratings <- scan("ratings.txt", what = list(integer(),integer(),integer()), sep = "|", nlines = 1540000)
+summary(ratings)
+```
+```{r}
+#Here, the reason we are turning the movie ids into factors is that, there are movies that are not rated by any user at all yet between the numbers 1 to 7225 (from movies.txt file). Our ratings.txt file will have only 6028 out of 7225 movies in the database. Our recommender system is based on UBCF model and so we only need movies that have been rated by neighboring or similar users. For this model we do not need the movies that have not been rated by anybody at all.
+
+#Now, converting this list into a sparse matrix using the sparseMatrix() function
+rating.mat <- sparseMatrix(i=ratings[[1]],j=as.integer(as.factor(ratings[[2]])),x=ratings[[3]])
+```
+
+```{r}
+#showing the dimensions of the sparse matrix
+dim(rating.mat)
+#summary(rating.mat)
+
+#Giving dimension names to the sparse matrix
+dimnames(rating.mat)<- list(user=sort(unique(ratings[[1]])),movie=sort(unique(ratings[[2]])))
+
+# A sample display for crosschecking with ratings.txt file
+rating.mat['6','5165']
+```
+
+```{r}
+#Converting the sparse matrix of type dgCMatrix to realRatingMatrix
+class(rating.mat)
+real.rat.mat <- new("realRatingMatrix", data = rating.mat)
+class(real.rat.mat)
+
+hist(getRatings(real.rat.mat), breaks="FD")
+#inspect a subset
+#image(real.rat.mat[1:5,1:5])
+
+#ratings <- scan("ratings.txt", what = list(""), nlines = 1540000)
+#users <- sapply(ratings[1], FUN = unique)
+#movies <- sapply(ratings[2], FUN = unique)
+```
+
+
+
+
+```{r}
+?Recommender
+recommenderRegistry$get_entries(dataType = "realRatingMatrix")
+
+#Creating a recommendor model : User Based COllaborative Filtering
+Rec.model<-Recommender(real.rat.mat, method = "UBCF")
+
+
+
+
+#Using the above Rec.model, we are going to find and display the top 5 recommended movies for user # 10000
+top5.user10000 <- predict(Rec.model, real.rat.mat["10000",], n=5)
+as(top5.user10000, "list")
+
+
+top5.user10000.top3 <- bestN(top5.user10000, n = 3)
+as(top5.user10000.top3, "list")
+
+#don forget to run the same above command without factoring the ratings[[2]] in the rating.mat step
+```
+
+
+c) What is the highest predicted rating movie for user #500? 
+
+
+```{r}
+#Finding the highest predicted rating and the corresponding movie for user # 500
+#But first predict the ratings ousing the Recommendor model for user 500
+pred.user500 <- predict(Rec.model, real.rat.mat["500",], type="ratings")
+
+#Storing the prediction ratings of user 500 in a matrix
+user500ratings <- as(pred.user500, "matrix")
+dim(user500ratings)
+
+#This is the index of the prediction which is maximum
+which.max(user500ratings)
+
+#Value of the highest predicted rating is as follows:
+user500ratings[which.max(user500ratings)]
+
+#Now lets find the movie corresponding to the highest predicted rating (which will also be the top recommended movie for this user)
+k <- arrayInd(3909, dim(user500ratings))
+colnames(user500ratings)[k[,2]]
+
+#Now lets cross verify by finding the top recommended movie (this will have the highest rated movie) -  CROSS VERIFICATION 
+top1.user500 <- predict(Rec.model, real.rat.mat["500",], n=1)
+as(top1.user500, "list")
+```
+
+

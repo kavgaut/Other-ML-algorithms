@@ -1,0 +1,45 @@
+---
+title: "Visualize Confusion Matrix"
+author: "Kavya Gautam"
+date: "December 5, 2015"
+output: html_document
+---
+
+Prepocessing required for Q7- image formation:
+
+Computing the confusion matrix on test data using az-5000.txt data
+setwd("/Users/kavyagautam/R Prog/281HW4")
+
+```{r}
+#performing lda and predicting on test data and building confusion matrix
+az <- read.table("az-5000.txt", header=TRUE)
+set.seed(101)
+train<-sample(1:5000, 4000)
+az.train <- az[train, ]
+dim(az.train)
+table(az.train$char)
+az.priors <- c(rep(1/26,26))
+library(MASS)
+az.lda <-lda(char~., az, subset=train, prior=az.priors)
+az.pred <- predict(az.lda,newdata = az[-train,], type = "response")
+names(az.pred)
+az.conf <- table(az[-train,]$char,az.pred$class)
+az.conf
+#replacing diagonal elements with 0
+diag(az.conf) = 0
+az.conf
+```
+
+
+
+
+```{r}
+image(az.conf, col = c("darkgrey","blue",'yellow','red'), axes = F)
+coordinates = (0:25)/25
+axis(side=1, at=coordinates, labels=letters[1:26])
+axis(side=2, at=coordinates, labels=letters[1:26])
+```
+
+
+
+

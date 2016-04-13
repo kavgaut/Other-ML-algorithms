@@ -1,0 +1,105 @@
+---
+title: "Text Mining"
+author: "Kavya Gautam"
+date: "December 5, 2015"
+output: html_document
+---
+Text Mining. The R package tm provides functionality for text mining applications. The data directories “rec.autos” and “rec.motorcycles” contain a subset of the 20 Newsgroups data set. 
+
+```{r}
+
+library(tm)
+?Corpus
+?DirSource
+
+```
+
+list.files("/Users/kavyagautam/R Prog/281HW4/Newsgroup_data", all.files = T, recursive = T)
+news.corpus <- Corpus(DirSource("/Users/kavyagautam/R Prog/281HW4/Newsgroup_data",recursive=T), readerControl = list(reader = readPlain))
+
+
+(a) Use the DirSource() and Corpus() tm commands to load the data into R (you may want to use the reader = readPlain argument in the call to Corpus()). Confirm all the documents were read into the corpus by 
+
+
+```{r}
+news.corpus <- Corpus(DirSource("/Users/kavyagautam/R Prog/281HW4/Newsgroup_data",recursive=T), readerControl = list(reader = readPlain))
+
+#Showing the output of length(news.corpus)
+length(news.corpus)
+
+#Printing the corpus entry corresponding to document rec.autos/103806 (hint: use names(news.corpus) and [[]] indexing to access corpus entries). 
+names(news.corpus)
+news.corpus[["103806"]]
+writeLines(as.character(news.corpus[["103806"]]))
+
+#Storing the names of news.corpus for later use
+filename.index <- names(news.corpus)
+```
+
+
+(b) Use the tm_map() command to apply the following preprocessing transformations of the corpus (in order): removePunctuation, removeNumbers, tolower, removeWords (with argument stopwords("english")) and stripWhitespace. After each step, print document rec.autos/103806 to confirm the effect of the operation
+
+For the next step "tolower" - is not part of the getTransformations() list, since "tm_map" doesnt operate on simple character values anymore in new R version. so we need to use the "content_transformer" function wrapper to convert everything to the correct data type within the corpus
+
+
+```{r}
+#TRANSFORMATIONS OF THE CORPUS IN ORDER - Printing rec.autos/103806 to confirm the effect of the operation after eachs step
+
+#removePunctuation
+news.corpus <- tm_map(news.corpus, removePunctuation)
+as.character(news.corpus[["103806"]])
+
+#removeNumbers
+news.corpus <- tm_map(news.corpus, removeNumbers)
+as.character(news.corpus[["103806"]])
+
+#tolower
+news.corpus <- tm_map(news.corpus, content_transformer(tolower))
+as.character(news.corpus[["103806"]])
+
+#removeWords (with argument stopwords("english"))
+news.corpus <- tm_map(news.corpus, removeWords, stopwords("english"))
+as.character(news.corpus[["103806"]])
+
+# And stripWhitespace
+news.corpus <- tm_map(news.corpus, stripWhitespace)
+as.character(news.corpus[["103806"]])
+
+```
+
+(b) continued....
+After the last transformation, please use the command: news.corpus <- Corpus(VectorSource(news.corpus)) to make sure the corpus elements are left in plain text prior to the next step.
+
+
+```{r}
+#Finally after all the transformations, to make sure the corpus elements are left in plain text prior to the next step.
+news.corpus <- Corpus(VectorSource(news.corpus))
+
+```
+
+(c) Use the DocumentTermMatrix() command to create a document-term matrix with TFIDF weights (also use minWordLength = 1 and minDocFreq = 1 arguments).  
+
+docTermMatrix = DocumentTermMatrix(news.corpus, control = list(weighting = weightTfIdf,minWordLength = 1,minDocFreq = 1))
+
+```{r}
+docterm.mat <- DocumentTermMatrix(news.corpus, control=list(weighting = function(x) weightTfIdf(x, normalize = FALSE), minWordLength = 1, minDocFreq = 1))
+docterm.mat
+inspect(docterm.mat[1:5,1:20])
+```
+all.equal(docterm.mat, docTermMatrix)
+
+(C) contd...., Then
+ 
+```{r}
+#•Use dim() to report the dimensions of the resulting matrix. This is a very sparse matrix with far fewer non-zero entries than the dim() values would suggest.
+dim(docterm.mat)
+
+#•Use the inspect() command to confirm that the terms 'bmw' and 'clutch' are present in our rec.autos/103806 document but 'mother' isn’t.
+#--------------------------------------------------------------------------
+# In order to access the record corresponding to our rec.autos/103806 document, we need the index of the record "103806". we can fetch that using our filename.index vector we stored earlier as follows:
+which(filename.index == 103806)
+
+#Lets inspect the record now using the above index - 980 (which corresponds to the rec.autos/103806 document)
+inspect(docterm.mat[980, c("bmw", "clutch", "mother")])
+
+```
